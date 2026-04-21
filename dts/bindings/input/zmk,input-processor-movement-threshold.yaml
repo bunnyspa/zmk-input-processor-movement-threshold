@@ -11,7 +11,7 @@ description: |
 
 compatible: "zmk,input-processor-movement-threshold"
 
-include: zmk-input-processor.yaml
+include: ip_zero_param.yaml
 
 properties:
   threshold:
