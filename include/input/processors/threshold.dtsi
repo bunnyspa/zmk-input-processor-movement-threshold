@@ -1,0 +1,6 @@
+/ {
+    threshold: threshold {
+        compatible = "zmk,input-processor-threshold";
+        #input-processor-cells = <2>;
+    };
+};

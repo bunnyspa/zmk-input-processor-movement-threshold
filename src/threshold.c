@@ -1,4 +1,4 @@
-#define DT_DRV_COMPAT zmk_input_processor_movement_threshold
+#define DT_DRV_COMPAT zmk_input_processor_threshold
 
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
@@ -6,27 +6,27 @@
 #include <drivers/input_processor.h>
 #include <zephyr/logging/log.h>
 
-LOG_MODULE_REGISTER(movement_threshold, CONFIG_ZMK_LOG_LEVEL);
+LOG_MODULE_REGISTER(threshold, CONFIG_ZMK_LOG_LEVEL);
 
-struct movement_threshold_data {
+struct threshold_data {
     uint32_t accumulated; /* total |dx|+|dy| since last idle reset */
     bool gated;           /* true = blocking events until threshold is met */
     bool skip_frame;      /* true = threshold crossed mid-frame, drop rest of frame */
     int64_t last_event_ms;
 };
 
-static int movement_threshold_handle_event(const struct device *dev,
-                                           struct input_event *event,
-                                           uint32_t param1,
-                                           uint32_t param2,
-                                           struct zmk_input_processor_state *state) {
-    struct movement_threshold_data *data = dev->data;
+static int threshold_handle_event(const struct device *dev,
+                                  struct input_event *event,
+                                  uint32_t param1,
+                                  uint32_t param2,
+                                  struct zmk_input_processor_state *state) {
+    struct threshold_data *data = dev->data;
     uint32_t threshold = param1;
     uint32_t idle_ms   = param2;
 
     int64_t now = k_uptime_get();
 
-    /* Reset accumulator after idle — next movement starts gated again */
+    /* Reset accumulator after idle — next movement starts blocked again */
     if (now - data->last_event_ms > (int64_t)idle_ms) {
         data->accumulated = 0;
         data->gated = true;
@@ -34,7 +34,7 @@ static int movement_threshold_handle_event(const struct device *dev,
     }
     data->last_event_ms = now;
 
-    /* Sync marks end-of-frame. Drop it while gated or when threshold was crossed
+    /* Sync marks end-of-frame. Drop it while blocked or when threshold was crossed
      * mid-frame (skip_frame), so no partial frame leaks to downstream processors. */
     if (event->sync) {
         bool drop = data->gated || data->skip_frame;
@@ -42,7 +42,7 @@ static int movement_threshold_handle_event(const struct device *dev,
         return drop ? ZMK_INPUT_PROC_STOP : ZMK_INPUT_PROC_CONTINUE;
     }
 
-    /* Only REL X/Y events contribute to accumulation; block others while gated */
+    /* Only REL X/Y events contribute to accumulation; block others while filtered */
     if (event->type != INPUT_EV_REL ||
         (event->code != INPUT_REL_X && event->code != INPUT_REL_Y)) {
         return data->gated ? ZMK_INPUT_PROC_STOP : ZMK_INPUT_PROC_CONTINUE;
@@ -56,7 +56,7 @@ static int movement_threshold_handle_event(const struct device *dev,
     data->accumulated += (uint32_t)(v < 0 ? -v : v);
 
     if (data->accumulated >= threshold) {
-        /* Threshold met — open the gate, but skip the rest of this frame so
+        /* Threshold met — allow events through, but skip the rest of this frame so
          * downstream processors see a clean full frame on the next cycle. */
         data->gated = false;
         data->skip_frame = true;
@@ -66,12 +66,12 @@ static int movement_threshold_handle_event(const struct device *dev,
     return ZMK_INPUT_PROC_STOP;
 }
 
-static const struct zmk_input_processor_driver_api movement_threshold_api = {
-    .handle_event = movement_threshold_handle_event,
+static const struct zmk_input_processor_driver_api threshold_api = {
+    .handle_event = threshold_handle_event,
 };
 
-#define MOVEMENT_THRESHOLD_INST(n)                                          \
-    static struct movement_threshold_data data_##n = {                      \
+#define THRESHOLD_INST(n)                                                   \
+    static struct threshold_data data_##n = {                               \
         .accumulated = 0,                                                   \
         .gated = true,                                                      \
         .skip_frame = false,                                                \
@@ -79,6 +79,6 @@ static const struct zmk_input_processor_driver_api movement_threshold_api = {
     };                                                                      \
     DEVICE_DT_INST_DEFINE(n, NULL, NULL, &data_##n, NULL,                   \
                           POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEFAULT, \
-                          &movement_threshold_api);
+                          &threshold_api);
 
-DT_INST_FOREACH_STATUS_OKAY(MOVEMENT_THRESHOLD_INST)
+DT_INST_FOREACH_STATUS_OKAY(THRESHOLD_INST)

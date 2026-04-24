@@ -1,6 +1,0 @@
-/ {
-    movement_threshold: movement_threshold {
-        compatible = "zmk,input-processor-movement-threshold";
-        #input-processor-cells = <2>;
-    };
-};
