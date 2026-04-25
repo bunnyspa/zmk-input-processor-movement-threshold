@@ -19,7 +19,7 @@ static bool is_scroll(const struct input_event *event) {
 
 struct threshold_data {
     uint32_t accumulated; /* total |dx|+|dy| since last idle reset */
-    bool blocked;           /* true = blocking events until threshold is met */
+    bool blocked;         /* true = blocking events until threshold is met */
     bool skip_frame;      /* true = threshold crossed mid-frame, drop rest of frame */
     int64_t last_event_ms;
 };
