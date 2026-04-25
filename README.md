@@ -2,7 +2,11 @@
 
 A [ZMK](https://zmk.dev) input processor that filters pointing device output until enough movement has accumulated to confirm intentional input. Accidental contact — a finger resting on or brushing the device — is silently discarded. Once the accumulated movement crosses the threshold, normal output resumes until the device goes idle.
 
-## `config/west.yml`
+## Getting Started
+
+Assuming that you are using the [zmk-pmw3610-driver](https://github.com/badjeff/zmk-pmw3610-driver).
+
+### `config/west.yml`
 
 ```yaml
 manifest:
@@ -27,36 +31,38 @@ manifest:
     path: config
 ```
 
-## `<keyboard>.conf`
+### `<keyboard>.conf`
 
 ```ini
 CONFIG_ZMK_POINTING=y
 CONFIG_ZMK_INPUT_PROCESSOR_THRESHOLD=y
 ```
 
-## Usage
-
-Add the following to your `<keyboard>.overlay` or `<keyboard>.dtsi`:
+### `<keyboard>.overlay` / `<keyboard>.dtsi`
 
 ```c
 #include <input/processors/threshold.dtsi>
 
 / {
-    pointing_device_listener {
+    trackball_listener {
         compatible = "zmk,input-listener";
-        device = <&pointing_device>;
+        device = <&trackball>;
         input-processors = <&threshold 100 2000>;
     };
 };
 ```
 
-Replace `pointing_device_listener` and `&pointing_device` with your actual listener and device labels (e.g. `trackball_listener` and `&trackball`). If your board or shield already defines an input-listener node, reference it instead of creating a new one:
+If `trackball_listener` is already defined by your board or shield (e.g. in a file you don't own and can't edit directly), override it instead:
 
 ```c
-&defined_listener_label {
+#include <input/processors/threshold.dtsi>
+
+&trackball_listener {
     input-processors = <&threshold 100 2000>;
 };
 ```
+
+## Parameters
 
 `<&threshold param1 param2>`
 
@@ -64,13 +70,19 @@ Replace `pointing_device_listener` and `&pointing_device` with your actual liste
 
 The values below are calculated and may not reflect real-world sensor behavior. Use them as a starting point and adjust to feel.
 
-| Sensor CPI | 15° turn (34mm ball) | 5 mm (trackpad) |
-|---|---|---|
-| 400 | 70 | 79 |
-| 600 | 105 | 118 |
-| 800 | 140 | 157 |
-| 1200 | 210 | 236 |
-| 1600 | 280 | 315 |
+<table>
+<thead>
+<tr><th rowspan="2">Sensor CPI</th><th colspan="3">34mm trackball</th><th colspan="3">40mm trackball</th></tr>
+<tr><th>5°</th><th>10°</th><th>15°</th><th>5°</th><th>10°</th><th>15°</th></tr>
+</thead>
+<tbody>
+<tr><td>400</td><td>23</td><td>47</td><td>70</td><td>27</td><td>55</td><td>82</td></tr>
+<tr><td>600</td><td>35</td><td>70</td><td>105</td><td>41</td><td>82</td><td>124</td></tr>
+<tr><td>800</td><td>47</td><td>93</td><td>140</td><td>55</td><td>110</td><td>165</td></tr>
+<tr><td>1200</td><td>70</td><td>140</td><td>210</td><td>82</td><td>165</td><td>247</td></tr>
+<tr><td>1600</td><td>93</td><td>187</td><td>280</td><td>110</td><td>220</td><td>330</td></tr>
+</tbody>
+</table>
 
 **`param2` — idle-ms**
 
@@ -99,6 +111,10 @@ input-processors = <
     &zip_xy_scaler 1 2
 >;
 ```
+
+## Trackpad
+
+This processor has not been tested with a trackpad. It may not work as expected — features like tap-to-click could be affected, since touch events that don't produce enough movement would be silently dropped before they reach other processors.
 
 ## How it works
 
