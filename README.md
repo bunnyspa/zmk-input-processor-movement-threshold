@@ -4,8 +4,6 @@ A [ZMK](https://zmk.dev) input processor that blocks pointing device output unti
 
 ## Getting Started
 
-Assuming that you are using the [zmk-pmw3610-driver](https://github.com/badjeff/zmk-pmw3610-driver).
-
 ### `config/west.yml`
 
 ```yaml
@@ -36,32 +34,37 @@ manifest:
 ```ini
 CONFIG_ZMK_POINTING=y
 CONFIG_ZMK_INPUT_PROCESSOR_THRESHOLD=y
+```
 
-# Optional, for trackpad — blocked by default. Change to =n to disable.
+Optionally, add the following when using a trackpad — blocked by default. Change to `=n` to disable.
+
+```ini
 CONFIG_ZMK_INPUT_PROCESSOR_THRESHOLD_BLOCK_BUTTONS=y
 CONFIG_ZMK_INPUT_PROCESSOR_THRESHOLD_BLOCK_SCROLL=y
 ```
 
 ### `<keyboard>.overlay` / `<keyboard>.dtsi`
 
+`pointing_device_listener` and `&pointing_device` are placeholders. For example, if you are using the [zmk-pmw3610-driver](https://github.com/badjeff/zmk-pmw3610-driver), replace them with `trackball_listener` and `&trackball`.
+
 ```c
 #include <input/processors/threshold.dtsi>
 
 / {
-    trackball_listener {
+    pointing_device_listener {
         compatible = "zmk,input-listener";
-        device = <&trackball>;
+        device = <&pointing_device>;
         input-processors = <&threshold 100 2000>;
     };
 };
 ```
 
-If `trackball_listener` is already defined by your board or shield (e.g. in a file you don't own and can't edit directly), override it instead:
+If `pointing_device_listener` is already defined by your board or shield (e.g. in a file you don't own and can't edit directly), override it instead:
 
 ```c
 #include <input/processors/threshold.dtsi>
 
-&trackball_listener {
+&pointing_device_listener {
     input-processors = <&threshold 100 2000>;
 };
 ```
@@ -116,10 +119,7 @@ input-processors = <
 >;
 ```
 
-## Trackpad
+## Notes
 
-This processor has not been tested with a trackpad. Please open an issue if you encounter any bugs.
+Tested with a trackball (Charybdis Mini). Not tested with a trackpad — please open an issue if you encounter any bugs.
 
-## How it works
-
-Every REL X/Y input event increments an internal accumulator by `|value|`. While the accumulator is below the threshold, all events are blocked. Once the threshold is crossed, events flow through normally. After the device is idle for `idle-ms` milliseconds, the accumulator resets and blocking resumes.
