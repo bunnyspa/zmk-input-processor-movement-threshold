@@ -10,7 +10,7 @@ LOG_MODULE_REGISTER(threshold, CONFIG_ZMK_LOG_LEVEL);
 
 struct threshold_data {
     uint32_t accumulated; /* total |dx|+|dy| since last idle reset */
-    bool gated;           /* true = blocking events until threshold is met */
+    bool blocked;           /* true = blocking events until threshold is met */
     bool skip_frame;      /* true = threshold crossed mid-frame, drop rest of frame */
     int64_t last_event_ms;
 };
@@ -29,7 +29,7 @@ static int threshold_handle_event(const struct device *dev,
     /* Reset accumulator after idle — next movement starts blocked again */
     if (now - data->last_event_ms > (int64_t)idle_ms) {
         data->accumulated = 0;
-        data->gated = true;
+        data->blocked = true;
         data->skip_frame = false;
     }
     data->last_event_ms = now;
@@ -37,18 +37,27 @@ static int threshold_handle_event(const struct device *dev,
     /* Sync marks end-of-frame. Drop it while blocked or when threshold was crossed
      * mid-frame (skip_frame), so no partial frame leaks to downstream processors. */
     if (event->sync) {
-        bool drop = data->gated || data->skip_frame;
+        bool drop = data->blocked || data->skip_frame;
         data->skip_frame = false;
         return drop ? ZMK_INPUT_PROC_STOP : ZMK_INPUT_PROC_CONTINUE;
     }
 
-    /* Only REL X/Y events contribute to accumulation; block others while filtered */
+    /* Non-movement events do not contribute to accumulation */
     if (event->type != INPUT_EV_REL ||
         (event->code != INPUT_REL_X && event->code != INPUT_REL_Y)) {
-        return data->gated ? ZMK_INPUT_PROC_STOP : ZMK_INPUT_PROC_CONTINUE;
+        if (!data->blocked) {
+            return ZMK_INPUT_PROC_CONTINUE;
+        }
+        if (event->type == INPUT_EV_KEY && IS_ENABLED(CONFIG_ZMK_INPUT_PROCESSOR_THRESHOLD_BLOCK_BUTTONS)) {
+            return ZMK_INPUT_PROC_STOP;
+        }
+        if (event->type == INPUT_EV_REL && IS_ENABLED(CONFIG_ZMK_INPUT_PROCESSOR_THRESHOLD_BLOCK_SCROLL)) {
+            return ZMK_INPUT_PROC_STOP;
+        }
+        return ZMK_INPUT_PROC_CONTINUE;
     }
 
-    if (!data->gated && !data->skip_frame) {
+    if (!data->blocked && !data->skip_frame) {
         return ZMK_INPUT_PROC_CONTINUE;
     }
 
@@ -58,7 +67,7 @@ static int threshold_handle_event(const struct device *dev,
     if (data->accumulated >= threshold) {
         /* Threshold met — allow events through, but skip the rest of this frame so
          * downstream processors see a clean full frame on the next cycle. */
-        data->gated = false;
+        data->blocked = false;
         data->skip_frame = true;
     }
 
@@ -73,7 +82,7 @@ static const struct zmk_input_processor_driver_api threshold_api = {
 #define THRESHOLD_INST(n)                                                   \
     static struct threshold_data data_##n = {                               \
         .accumulated = 0,                                                   \
-        .gated = true,                                                      \
+        .blocked = true,                                                      \
         .skip_frame = false,                                                \
         .last_event_ms = 0,                                                 \
     };                                                                      \

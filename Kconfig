@@ -1,3 +1,13 @@
 config ZMK_INPUT_PROCESSOR_THRESHOLD
-    bool "Pointing device filter threshold"
+    bool "Pointing device threshold block"
     depends on ZMK_POINTING
+
+config ZMK_INPUT_PROCESSOR_THRESHOLD_BLOCK_BUTTONS
+    bool "Block button events while threshold is not met"
+    depends on ZMK_INPUT_PROCESSOR_THRESHOLD
+    default y
+
+config ZMK_INPUT_PROCESSOR_THRESHOLD_BLOCK_SCROLL
+    bool "Block scroll events while threshold is not met"
+    depends on ZMK_INPUT_PROCESSOR_THRESHOLD
+    default y
