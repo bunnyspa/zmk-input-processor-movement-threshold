@@ -43,7 +43,7 @@ CONFIG_ZMK_INPUT_PROCESSOR_THRESHOLD_BLOCK_BUTTONS=y
 CONFIG_ZMK_INPUT_PROCESSOR_THRESHOLD_BLOCK_SCROLL=y
 ```
 
-### `<keyboard>.overlay` / `<keyboard>.dtsi`
+### `<keyboard>.overlay` or `<keyboard>.dtsi`
 
 `pointing_device_listener` and `&pointing_device` are placeholders. For example, if you are using the [zmk-pmw3610-driver](https://github.com/badjeff/zmk-pmw3610-driver), replace them with `trackball_listener` and `&trackball`.
 
